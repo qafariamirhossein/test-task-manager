@@ -16,37 +16,35 @@
 
     <ul class="task-list">
       <li v-for="task in tasks" :key="task._id">
-        <span>{{ task.title }}</span>
-        <small>{{ task.done ? '✅' : '⬜️' }}</small>
+        <label class="task-item">
+          <input
+            type="checkbox"
+            :checked="task.done"
+            @change="toggleTask(task._id, !task.done)"
+          />
+          <span :class="{ completed: task.done }">{{ task.title }}</span>
+        </label>
       </li>
     </ul>
   </main>
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue';
+import { ref } from 'vue';
+
+interface Task {
+  _id: string;
+  title: string;
+  done: boolean;
+}
 
 const title = ref('');
 const error = ref('');
-const tasks = ref<any[]>([]);
 const pending = ref(false);
 
-const fetchTasks = async () => {
-  try {
-    const { data, error: fetchError } = await useFetch('/api/tasks');
-    if (fetchError.value) {
-      error.value = `Failed to load tasks: ${fetchError.value.message || fetchError.value}`;
-      console.error('Fetch error:', fetchError.value);
-      return;
-    }
-    tasks.value = data.value as any[] || [];
-  } catch (err: any) {
-    error.value = `Failed to load tasks: ${err.message || err}`;
-    console.error('Fetch exception:', err);
-  }
-};
-
-watchEffect(fetchTasks);
+const { data: tasks, refresh: refreshTasks } = await useFetch<Task[]>('/api/tasks', {
+  default: () => [],
+});
 
 const addTask = async () => {
   if (!title.value.trim()) return;
@@ -54,24 +52,32 @@ const addTask = async () => {
   error.value = '';
 
   try {
-    const { error: postError } = await useFetch('/api/tasks', {
+    await $fetch('/api/tasks', {
       method: 'POST',
       body: { title: title.value, done: false },
     });
 
-    if (postError.value) {
-      error.value = `Failed to add task: ${postError.value.message || postError.value}`;
-      console.error('Post error:', postError.value);
-    } else {
-      title.value = '';
-      await fetchTasks();
-    }
+    title.value = '';
+    await refreshTasks();
   } catch (err: any) {
     error.value = `Failed to add task: ${err.message || err}`;
     console.error('Post exception:', err);
   }
 
   pending.value = false;
+};
+
+const toggleTask = async (id: string, done: boolean) => {
+  try {
+    await $fetch(`/api/tasks/${id}`, {
+      method: 'PATCH',
+      body: { done },
+    });
+    await refreshTasks();
+  } catch (err: any) {
+    error.value = `Failed to update task: ${err.message || err}`;
+    console.error('Update exception:', err);
+  }
 };
 </script>
 
@@ -96,6 +102,7 @@ const addTask = async () => {
   padding: 0.5rem 0.75rem;
   border: 1px solid #ddd;
   border-radius: 6px;
+  font-size: 1.125rem;
 }
 
 .task-form button {
@@ -128,8 +135,27 @@ const addTask = async () => {
   padding: 0.75rem 1rem;
   border: 1px solid #eee;
   border-radius: 8px;
+}
+
+.task-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.task-item input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+}
+
+.task-item span {
+  flex: 1;
+}
+
+.task-item span.completed {
+  text-decoration: line-through;
+  color: #666;
 }
 </style>

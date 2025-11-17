@@ -15,4 +15,8 @@ export class TasksService {
   create(createTaskDto: CreateTaskDto) {
     return this.taskModel.create(createTaskDto);
   }
+
+  update(id: string, updateData: { done?: boolean }) {
+    return this.taskModel.findByIdAndUpdate(id, updateData, { new: true }).lean().exec();
+  }
 }
