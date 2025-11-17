@@ -1,8 +1,15 @@
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
-  const body = await readBody(event);
-  return $fetch(`${config.public.backendUrl}/tasks`, {
-    method: 'POST',
-    body,
-  });
+  try {
+    const body = await readBody(event);
+    return await $fetch(`${config.public.backendUrl}/tasks`, {
+      method: 'POST',
+      body,
+    });
+  } catch (error: any) {
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.message || 'Failed to create task',
+    });
+  }
 });

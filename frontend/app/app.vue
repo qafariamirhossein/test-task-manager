@@ -32,12 +32,18 @@ const tasks = ref<any[]>([]);
 const pending = ref(false);
 
 const fetchTasks = async () => {
-  const { data, error: fetchError } = await useFetch('/api/tasks');
-  if (fetchError.value) {
-    error.value = 'Failed to load tasks';
-    return;
+  try {
+    const { data, error: fetchError } = await useFetch('/api/tasks');
+    if (fetchError.value) {
+      error.value = `Failed to load tasks: ${fetchError.value.message || fetchError.value}`;
+      console.error('Fetch error:', fetchError.value);
+      return;
+    }
+    tasks.value = data.value as any[] || [];
+  } catch (err: any) {
+    error.value = `Failed to load tasks: ${err.message || err}`;
+    console.error('Fetch exception:', err);
   }
-  tasks.value = data.value ?? [];
 };
 
 watchEffect(fetchTasks);
@@ -47,16 +53,22 @@ const addTask = async () => {
   pending.value = true;
   error.value = '';
 
-  const { error: postError } = await useFetch('/api/tasks', {
-    method: 'POST',
-    body: { title: title.value, done: false },
-  });
+  try {
+    const { error: postError } = await useFetch('/api/tasks', {
+      method: 'POST',
+      body: { title: title.value, done: false },
+    });
 
-  if (postError.value) {
-    error.value = 'Failed to add task';
-  } else {
-    title.value = '';
-    await fetchTasks();
+    if (postError.value) {
+      error.value = `Failed to add task: ${postError.value.message || postError.value}`;
+      console.error('Post error:', postError.value);
+    } else {
+      title.value = '';
+      await fetchTasks();
+    }
+  } catch (err: any) {
+    error.value = `Failed to add task: ${err.message || err}`;
+    console.error('Post exception:', err);
   }
 
   pending.value = false;
